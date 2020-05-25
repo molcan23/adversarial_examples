@@ -12,6 +12,6 @@ MIN_COUNT = 5
 
 DATASET_PATHS = {'fake': 'data/fake-news/train.csv'}
 DATASET_NAMES = {'fake': 'fake'}
-DATASET_MAX = {'fake': 600}
+DATASET_MAX = {'fake': 100}
 
-EXP_SIZE = 600
+EXP_SIZE = 100

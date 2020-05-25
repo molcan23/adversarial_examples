@@ -1,8 +1,7 @@
 from keras.layers import LSTM
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.models import model_from_json
-from sklearn.linear_model import LogisticRegression
+from keras.models import Sequential, model_from_json
+from keras.layers import Dense, GlobalAveragePooling1D
+# from sklearn.linear_model import LogisticRegression
 import warnings
 from os import path
 
@@ -14,7 +13,6 @@ from os import path
 # and then using multinomial logistic regression on this feature vector.
 # The output dimensionis  512. The  variant  of  LSTM  we  used  is  the  common “vanilla”
 # We also used gradient clipping in which the gradient norm is limited to 5
-
 # We then average the outputs of the LSTMat each time step to obtain
 # a feature vector for a final logistic regression to predict the sentiment.
 
@@ -36,14 +34,11 @@ def lstm_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
     # X_validate = load_w2v_text('X_validate_' + dataset + '.csv')
 
     if not path.exists("model" + dataset + ".json") or not path.exists("model" + dataset + ".h5"):
+
         model = Sequential()
-        model.add(LSTM(512))
+        model.add(LSTM(512, return_sequences=True))
+        model.add(GlobalAveragePooling1D())
 
-        # FIXME ako urobit toto?
-        # We then average the outputs of the LSTMat each time step to obtain
-        # a feature vector for a final logistic regression to predict the sentiment
-
-        # model.add(LogisticRegression(random_state=0, multi_class='multinomial', solver='newton-cg'))
         model.add(Dense(1, activation='sigmoid'))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         # print(model.summary())
@@ -70,25 +65,9 @@ def lstm_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
         print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
 
 
-# clf = LogisticRegression(random_state=0, multi_class='multinomial', solver='newton-cg')
-# model = Sequential()
-#
-# # Masking layer for pre-trained embeddings
-# model.add(Masking(mask_value=0.0))
-#
 # # Recurrent layer
 # model.add(LSTM(64, return_sequences=False,
 #                dropout=0.1, recurrent_dropout=0.1))
-#
-# # Fully connected layer
-# model.add(Dense(64, activation='relu'))
-#
-# # Dropout for regularization
-# model.add(Dropout(0.5))
-#
-# # Output layer
-# model.add(Dense(num_words, activation='softmax'))
-
 
 
 if __name__ == '__main__':
