@@ -15,7 +15,14 @@ def naive_bayes(articles, labels, dataset):
 
     X_train, X_validate = convert_to_bag_of_words_format(articles, dataset)
 
+    [print(i) for i in X_train]
+    print(X_validate)
     gnb = MultinomialNB()
+
+    # test na natrenovani na sebe samom funguje
+    # y_pred = gnb.fit(X_train, Y_train).predict(X_train)
     y_pred = gnb.fit(X_train, Y_train).predict(X_validate)
 
+    # print(len(y_pred), Y_validate.shape)
+    # print("Mislabeled:", (100 * (Y_train != y_pred).sum()), "%")
     print("Mislabeled:", (100 * (Y_validate != y_pred).sum()) / X_validate.shape[0], "%")

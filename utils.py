@@ -23,6 +23,8 @@ def load_news_train_data(dataset):
             X_train.append(row[3])
             Y_train.append(int(row[4]))
 
+    # print(len(X_train))
+
     return X_train[:cs.DATASET_MAX[dataset]], Y_train[:cs.DATASET_MAX[dataset]]
 
 
@@ -44,10 +46,18 @@ def load_news_test_data(name_of_file, name_of_labels):
 
 
 def clean_text(original_text, dataset):
+    """
+
+    :param original_text: articles
+    :param dataset: string
+    :return: data - array of cleaned articles, all_data - array of cleaned sentences,
+     max_art - maximal length of article
+    """
     data = []
     all_data = []
     # if not path.exists('stammed_' + dataset + '.txt'):
     max_art = 0
+
     for x in original_text:
         article = []
         for i in sent_tokenize(x):
@@ -57,9 +67,7 @@ def clean_text(original_text, dataset):
             words = [w for w in words if w not in cs.STOP_WORDS]
             porter = PorterStemmer()
             stemmed = [porter.stem(word) for word in words]
-
             article += stemmed
-            # article.append(stemmed)
             all_data.append(stemmed)
             # max_word = len(stemmed) if len(stemmed) > max_word else max_word
 
@@ -93,6 +101,7 @@ def clean_text(original_text, dataset):
 
     # train_size = int(len(original_text) * cs.TRAINING_PORTION)
     # print(max_word, max_art)
+
     return data, all_data, max_art  # , max_word
 
 
@@ -123,7 +132,7 @@ def bag_of_words(data):
 def convert_to_bag_of_words_format(original_text, dataset):
     data, all_data, max_art = clean_text(original_text, dataset)
 
-    bag = bag_of_words(all_data)
+    bag = bag_of_words(data)
 
     train_size = int(len(original_text) * cs.TRAINING_PORTION)
 
