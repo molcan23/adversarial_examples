@@ -59,7 +59,7 @@ class ShallowCNN:
             model = Sequential()
 
             # FIXME aby sa aplikovalo viacero filtrov (hore rozpisane co presne)
-            model.add(Conv2D)
+            model.add(Conv2D(kernel_size=(3, 300)))
 
             # max-pooling over time
             model.add(Reshape((X_train[1] * X_train[2], 1)))
