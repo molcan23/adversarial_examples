@@ -227,3 +227,10 @@ def load_w2v_text(file):
         orig_data.append(new_row)
 
     return examples
+
+
+def expand_for_softmax(y):
+    y_new = []
+    for i in y:
+        y_new.append([0, 1] if i == 1 else [1, 0])
+    return np.array(y_new)

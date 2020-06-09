@@ -39,19 +39,6 @@ class ShallowCNN:
     @staticmethod
     def shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
         warnings.filterwarnings(action='ignore')
-        # nltk.download('punkt')
-
-        # if not path.exists('X_train_' + dataset + '.csv') or not path.exists('X_validate_' + dataset + '.csv'):
-        #     DATA LOAD
-
-        # fixme lepsi sposob ulozenia
-        # save_w2v_text('X_train_' + dataset + '.csv', X_train)
-        # save_w2v_text('X_validate_' + dataset + '.csv', X_validate)
-
-        # else:
-        # default dtype for  np.loadtxt is also floating point, change it, to be able to load mixed data.
-        # X_train = load_w2v_text('X_train_' + dataset + '.csv')
-        # X_validate = load_w2v_text('X_validate_' + dataset + '.csv')
 
         if not path.exists("model_shallow_cnn" + dataset + ".json") or \
                 not path.exists("model_shallow_cnn" + dataset + ".h5"):
