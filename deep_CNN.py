@@ -33,15 +33,16 @@ class KMaxPooling(Layer):
 
     def __init__(self, k=1, **kwargs):
         super().__init__(**kwargs)
-        self.input_spec = InputSpec(ndim=3)
+        # fixme k povodne rovne 3
+        self.input_spec = InputSpec(ndim=4)
         self.k = k
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], (input_shape[2] * self.k))
+        return input_shape[0], (input_shape[2] * self.k)
 
     def call(self, inputs):
         # swap last two dimensions since top_k will be applied along the last dimension
-        shifted_input = tf.transpose(inputs, [0, 2, 1])
+        shifted_input = tf.transpose(inputs, [0, 1, 3, 2])
 
         # extract top_k, returns two tensors [values, indices]
         top_k = tf.nn.top_k(shifted_input, k=self.k, sorted=True, name=None)[0]
@@ -56,7 +57,13 @@ class DeepCNN:
     def deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
         warnings.filterwarnings(action='ignore')
 
-        # FIXME spravne pozmenenie siete z image recognitionu na NLP problem
+        from keras.backend.tensorflow_backend import set_session
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+        sess = tf.Session(config=config)
+        set_session(sess)
+
+        # FIXME spravne pozmenenie siete z image recognition na NLP problem
         X_train = X_train.reshape(X_train.shape + (1,))
         X_validate = X_validate.reshape(X_validate.shape + (1,))
 
@@ -76,42 +83,23 @@ class DeepCNN:
             #
             #     if i < 3:
             #         # (i) for the same output temporal resolution, the layers have the same number of feature maps,
-            #         # (ii) when the temporal resolution  is halved,  the number  of feature  maps  is  doubled. - TODO
+            #         # (ii) when the temporal resolution  is halved,  the number  of feature  maps  is  doubled. -
+            #         TO_DO
             #         # stackujeme feature mapy a vytvarame feature bloky
             #
             #         # The output of these convolutional blocks is a tensor of size 512×sd, where sd=s/2^p, p= 3
             #         # the number of down-sampling operations.
-            #         # s = 1024 a je to # characters
-            #         model.add(MaxPooling2D(pool_size=(2, 2)))  # FIXME pool size zmenit # stride 2
+            #         # TODO s = 1024 a je to # characters - AKO?
+            #         model.add(MaxPooling2D(pool_size=(2, 2)))  # FIX_ME pool size zmenit # stride 2
             #     else:
             #         model.add(KMaxPooling(k=8))
             #
             # model.add(Dense(2048, activation='ReLU'))
             # model.add(Dense(2048, activation='ReLU'))
-            # model.add(Dense(2, activation='softmax'))  # todo softmax?
+            # model.add(Dense(2, activation='softmax'))  # to_do softmax?
 
             # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c
             # hovory o architekture VDCNN
-
-            # model = Sequential()
-            # model.add(Conv2D(input_shape=(224, 224, 3), filters=64, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # model.add(Conv2D(filters=256, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=256, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=256, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
-            # model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
 
             input_shape = X_train[0].shape
 
@@ -142,9 +130,9 @@ class DeepCNN:
             # FIXME ValueError: Input 0 is incompatible with layer k_max_pooling_1: expected ndim=3, found ndim=4
             #  pretoze to pouzival na obrazky a mal tak 3 dim (w,h, channels), tu mame len 2, cize jednu umelo pridame
             #  ale potom nefunguje najdena funkcia k max poolingu
-            # model.add(KMaxPooling(k=8))
+            model.add(KMaxPooling(k=8))
 
-            model.add(Flatten())
+            # model.add(Flatten())
             # bez flatten: ValueError: Error when checking target: expected dense_3 to have 4 dimensions,
             # but got array with shape (2, 1)
             # pouzite flatten: ValueError: Error when checking target: expected dense_3 to have shape (2,)
@@ -166,9 +154,16 @@ class DeepCNN:
                                          save_weights_only=False,
                                          mode='auto', period=1)
             early = EarlyStopping(monitor='val_acc', min_delta=0, patience=20, verbose=1, mode='auto')
-            hist = model.fit_generator(steps_per_epoch=100, generator=(X_train, Y_train),
-                                       validation_data=(X_validate, Y_validate), validation_steps=10,
-                                       epochs=100, callbacks=[checkpoint, early])
+            # hist = model.fit(steps_per_epoch=100, generator=(X_train, Y_train)
+            #                            ,
+            #                            validation_data=(X_validate, Y_validate), validation_steps=10,
+            #                            epochs=100, callbacks=[checkpoint, early]
+            #                            )
+
+            hist = model.fit(steps_per_epoch=100, x=X_train, y=Y_train,
+                             # validation_data=(X_validate, Y_validate), validation_steps=10,
+                             epochs=100, callbacks=[checkpoint, early]
+                             )
 
             plt.plot(hist.history["acc"])
             plt.plot(hist.history['val_acc'])

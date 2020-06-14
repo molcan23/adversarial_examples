@@ -1,16 +1,187 @@
-import sys
-import csv
 import numpy as np
-from nltk.tokenize import sent_tokenize, word_tokenize
-from gensim.models import Word2Vec, KeyedVectors
-from nltk.stem.porter import PorterStemmer
+import re
+import itertools
+from collections import Counter
 import constants as cs
-from os import path
+import csv
+from nltk.stem.porter import PorterStemmer
+
+from w2v import *
+
+import sys
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+
+def load_data1(dataset):
+    x, y, vocabulary, vocabulary_inv_list = load_data_for_w2v(dataset)
+    vocabulary_inv = {key: value for key, value in enumerate(vocabulary_inv_list)}
+
+    # Shuffle data
+    shuffle_indices = np.random.permutation(np.arange(len(y)))
+    x = x[shuffle_indices]
+    y = y[shuffle_indices]
+    train_len = int(len(x) * 0.9)
+    X_train = x[:train_len]
+    Y_train = y[:train_len]
+    X_validate = x[train_len:]
+    Y_validate = y[train_len:]
+
+    return X_train, Y_train, X_validate, Y_validate, vocabulary_inv
+
+
+def load_data(dataset):
+    # Data Preparation
+    print("Load data...")
+    X_train, Y_train, X_validate, Y_validate, vocabulary_inv = load_data1(dataset)
+
+    print("X_train shape:", X_train.shape)
+    print("X_validate shape:", X_validate.shape)
+    print("Vocabulary Size: {:d}".format(len(vocabulary_inv)))
+
+    # Prepare embedding layer weights and convert inputs for static model
+    embedding_weights = train_word2vec(np.vstack((X_train, X_validate)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
+                                       min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
+    X_train = np.stack([np.stack([embedding_weights[word] for word in sentence]) for sentence in X_train])
+    X_validate = np.stack([np.stack([embedding_weights[word] for word in sentence]) for sentence in X_validate])
+    print("X_train static shape:", X_train.shape)
+    print("X_validate static shape:", X_validate.shape)
+    return X_train, X_validate, Y_train, Y_validate
+
+
+def clean_str(string):
+    """
+    Tokenization/string cleaning.
+    """
+    string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
+    string = re.sub(r"\'s", " \'s", string)
+    string = re.sub(r"\'ve", " \'ve", string)
+    string = re.sub(r"n\'t", " n\'t", string)
+    string = re.sub(r"\'re", " \'re", string)
+    string = re.sub(r"\'d", " \'d", string)
+    string = re.sub(r"\'ll", " \'ll", string)
+    string = re.sub(r",", " , ", string)
+    string = re.sub(r"!", " ! ", string)
+    string = re.sub(r"\(", " \( ", string)
+    string = re.sub(r"\)", " \) ", string)
+    string = re.sub(r"\?", " \? ", string)
+    string = re.sub(r"\s{2,}", " ", string)
+    return string.strip().lower()
+
+
+def load_data_and_labels(dataset):
+    """
+    Loads 'dataset' data from file, splits the data into words and generates labels.
+    Returns split sentences and labels.
+    """
+    # fixme spravne vratit validate a train
+    name_of_file = cs.DATASET_PATHS[dataset]
+    X_train, Y_train = [], []
+    with open(name_of_file, newline='') as csv_file:
+        news_reader = csv.reader(csv_file)
+        _ = next(csv_file)
+        for row in news_reader:
+            X_train.append(row[3])
+            Y_train.append([0, 1] if int(row[4]) == 1 else [1, 0])
+
+    X_train = [clean_str(sent) for sent in X_train]
+    X_train = [s.split(" ") for s in X_train]
+
+    cleaned_X_train = []
+    porter = PorterStemmer()
+
+    for x in X_train:
+        # print(x)
+
+        article = []
+        for i in x:
+            stripped = i.translate(cs.TABLE)
+            if not stripped.isalpha() or stripped in cs.STOP_WORDS:
+                continue
+            stemmed = porter.stem(stripped)
+            article.append(stemmed)
+
+        cleaned_X_train.append(article)
+
+    return np.array(cleaned_X_train[:cs.DATASET_MAX[dataset]]), np.array(Y_train[:cs.DATASET_MAX[dataset]])
+
+
+def pad_sentences(sentences, padding_word="<PAD/>"):
+    """
+    Pads all sentences to the same length. The length is defined by the longest sentence.
+    Returns padded sentences.
+    """
+    sequence_length = max(len(x) for x in sentences)
+    padded_sentences = []
+    for i in range(len(sentences)):
+        sentence = sentences[i]
+        num_padding = sequence_length - len(sentence)
+        new_sentence = sentence + [padding_word] * num_padding
+        padded_sentences.append(new_sentence)
+    return padded_sentences
+
+
+def build_vocab(sentences):
+    """
+    Builds a vocabulary mapping from word to index based on the sentences.
+    Returns vocabulary mapping and inverse vocabulary mapping.
+    """
+    # Build vocabulary
+    word_counts = Counter(itertools.chain(*sentences))
+    # Mapping from index to word
+    vocabulary_inv = [x[0] for x in word_counts.most_common()]
+    # Mapping from word to index
+    vocabulary = {x: i for i, x in enumerate(vocabulary_inv)}
+    return [vocabulary, vocabulary_inv]
+
+
+def build_input_data(sentences, labels, vocabulary):
+    """
+    Maps sentencs and labels to vectors based on a vocabulary.
+    """
+    x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
+    y = np.array(labels)
+    return [x, y]
+
+
+def load_data_for_w2v(dataset):
+    """
+    Loads and preprocessed data. Returns input vectors, labels, vocabulary, and inverse vocabulary.
+    """
+    # Load and preprocess data
+    sentences, labels = load_data_and_labels(dataset)
+    sentences_padded = pad_sentences(sentences)
+    vocabulary, vocabulary_inv = build_vocab(sentences_padded)
+    x, y = build_input_data(sentences_padded, labels, vocabulary)
+    return [x, y, vocabulary, vocabulary_inv]
+
+
+def batch_iter(data, batch_size, num_epochs):
+    """
+    Generates a batch iterator for a dataset.
+    """
+    data = np.array(data)
+    data_size = len(data)
+    num_batches_per_epoch = int(len(data) / batch_size) + 1
+    for epoch in range(num_epochs):
+        # Shuffle the data at each epoch
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_data = data[shuffle_indices]
+        for batch_num in range(num_batches_per_epoch):
+            start_index = batch_num * batch_size
+            end_index = min((batch_num + 1) * batch_size, data_size)
+            yield shuffled_data[start_index:end_index]
+
+
+# bag of words
 
 csv.field_size_limit(sys.maxsize)
 
 
 def load_news_train_data(dataset):
+    """
+    Loads 'dataset' data from file, splits the data into words and generates labels.
+    Returns split sentences and labels.
+    """
     # fixme spravne vratit validate a train
     name_of_file = cs.DATASET_PATHS[dataset]
     X_train, Y_train = [], []
@@ -29,6 +200,9 @@ def load_news_train_data(dataset):
 
 
 def load_news_test_data(name_of_file, name_of_labels):
+    """
+    Same as above but for test set.
+    """
     X_test, Y_test = [], []
     with open(name_of_file, newline='') as csvfile:
         news_reader = csv.reader(csvfile)
@@ -47,11 +221,7 @@ def load_news_test_data(name_of_file, name_of_labels):
 
 def clean_text(original_text, dataset):
     """
-
-    :param original_text: articles
-    :param dataset: string
-    :return: data - array of cleaned articles, all_data - array of cleaned sentences,
-     max_art - maximal length of article
+    Removes everything unneeded. (stemming, stripping..)
     """
     data = []
     all_data = []
@@ -106,6 +276,9 @@ def clean_text(original_text, dataset):
 
 
 def bag_of_words(data):
+    """
+    # todo
+    """
     bag = {}
     for article in data:
         _article = []
@@ -130,6 +303,9 @@ def bag_of_words(data):
 
 
 def convert_to_bag_of_words_format(original_text, dataset):
+    """
+    # todo
+    """
     data, all_data, max_art = clean_text(original_text, dataset)
 
     bag = bag_of_words(data)
@@ -137,100 +313,3 @@ def convert_to_bag_of_words_format(original_text, dataset):
     train_size = int(len(original_text) * cs.TRAINING_PORTION)
 
     return np.array(bag[:train_size]), np.array(bag[train_size:cs.DATASET_MAX[dataset]])
-
-
-def con_w2v(data, model1, max_art):
-
-    w2v_data = []
-
-    for article in data:
-        _article = []
-        for word in article:
-            if word in model1:
-                _article.append(model1.wv[word])
-
-        # padding
-        for _ in range(max_art - len(_article)):
-            _article.append(np.zeros(cs.SIZE))
-
-        w2v_data.append(_article)
-
-    return np.array(w2v_data)
-
-
-def purify_words_not_in_model(data, model):
-    pur_data = []
-    max_art = 0
-    for article in data:
-        _article = []
-        for word in article:
-            if word in model:
-                _article.append(word)
-
-        max_art = len(_article) if len(_article) > max_art else max_art
-        pur_data.append(_article)
-
-    return np.array(pur_data), max_art
-
-
-def convert_to_word2vec(original_text, dataset):
-    data, all_data, max_art = clean_text(original_text, dataset)
-
-    print(max_art)
-    # Create CBOW model
-    if not path.exists(dataset + '_model'):
-
-        model = Word2Vec(
-            all_data,
-            size=cs.SIZE,
-            min_count=cs.MIN_COUNT,
-            window=cs.WINDOW,
-            seed=1337
-        )
-        model.save(dataset + "_model")
-        model.wv.save_word2vec_format(dataset + "_model.bin", binary=True)
-
-    else:
-        model = Word2Vec.load(dataset + "_model")
-        # word_vectors = KeyedVectors.load_word2vec_format(dataset + "_model.bin", binary=True)
-
-    data, max_art = purify_words_not_in_model(data, model)
-    print(max_art)
-    data = con_w2v(data, model, max_art)
-    train_size = int(len(original_text) * cs.TRAINING_PORTION)
-
-    return np.array(data[:train_size]), np.array(data[train_size:cs.DATASET_MAX[dataset]])
-
-
-def save_w2v_text(file, data):
-    with open(file, 'w', newline='') as csv_file:
-        writer = csv.writer(csv_file, delimiter=',')
-        writer.writerows(data)
-
-
-def load_w2v_text(file):
-    # to read file you saved
-    with open(file, 'r') as f:
-        reader = csv.reader(f)
-        examples = list(reader)
-    orig_data = []
-
-    for row in examples:
-        new_row = []
-        for word in row:
-            print(word)
-            word = word.replace("\n", "")[1:-1].split(" ")
-            for el in word:
-                print(el)
-                el.replace('\n', '')
-                new_row.append(float(el))
-        orig_data.append(new_row)
-
-    return examples
-
-
-def expand_for_softmax(y):
-    y_new = []
-    for i in y:
-        y_new.append([0, 1] if i == 1 else [1, 0])
-    return np.array(y_new)

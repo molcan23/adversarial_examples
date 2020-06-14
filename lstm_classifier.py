@@ -34,7 +34,7 @@ class LSTM_Classifier:
         # X_train = load_w2v_text('X_train_' + dataset + '.csv')
         # X_validate = load_w2v_text('X_validate_' + dataset + '.csv')
     
-        if not path.exists("model_lstm" + dataset + ".json") or not path.exists("model_lstm" + dataset + ".h5"):
+        if not path.exists("model_lstm_" + dataset + ".json") or not path.exists("model_lstm_" + dataset + ".h5"):
     
             model = Sequential()
             model.add(LSTM(512, return_sequences=True))
@@ -46,9 +46,9 @@ class LSTM_Classifier:
             model.fit(X_train, Y_train, validation_data=(X_validate, Y_validate), epochs=10, batch_size=64)
     
             model_json = model.to_json()
-            with open("model_lstm" + dataset + ".json", "w") as json_file:
+            with open("model_lstm_" + dataset + ".json", "w") as json_file:
                 json_file.write(model_json)
-            model.save_weights("model_lstm" + dataset + ".h5")
+            model.save_weights("model_lstm_" + dataset + ".h5")
             print("Saved model to disk")
     
             scores = model.evaluate(X_validate, Y_validate, verbose=0)
@@ -58,7 +58,7 @@ class LSTM_Classifier:
             loaded_model_json = json_file.read()
             json_file.close()
             loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights("model_lstm" + dataset + ".h5")
+            loaded_model.load_weights("model_lstm_" + dataset + ".h5")
             print("Loaded model from disk")
     
             loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
