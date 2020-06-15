@@ -18,16 +18,20 @@ dataset = 'fake'
 
 # naive_bayes(articles, labels, dataset)
 
-X_train, X_validate, Y_train, Y_validate = load_data(dataset)
+X_train, X_validate, Y_train, Y_validate, embedding = load_data(dataset)
 
+Y_train_LSTM = np.array([0 if i[0] == 1 else 1 for i in Y_train])
+Y_validate_LSTM = np.array([0 if i[0] == 1 else 1 for i in Y_validate])
 
 # LSTM classifier
-# LSTM_Classifier.lstm_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+# LSTM_Classifier.lstm_classifier(X_train, X_validate, Y_train_LSTM, Y_validate_LSTM, dataset)
 
 
 # Shallow word-level convolutional network
-ShallowCNN.shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+# ShallowCNN.shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
 # shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
 
 # Deep  character-level  convolutional  networks
-# DeepCNN.deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+DeepCNN.deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+
+

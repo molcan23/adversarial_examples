@@ -1,5 +1,4 @@
 from keras.models import Sequential, model_from_json
-from keras.layers import Dense, GlobalMaxPooling1D, Conv2D, Reshape, Dropout, MaxPooling2D
 import warnings
 from os import path
 
@@ -70,34 +69,6 @@ class DeepCNN:
         if not path.exists("model_shallow_cnn" + dataset + ".json") or \
                 not path.exists("model_shallow_cnn" + dataset + ".h5"):
 
-            # model = Sequential()
-            #
-            # # We first apply one layer of 64 convolutions  of size 3, followed by a stack of temporal
-            # # “convolutional blocks”.
-            # model.add(Conv2D(kernel_size=(3, 64)))
-            #
-            # for i in range(4):
-            #     model.add(Conv2D(kernel_size=(3, 64 * (2 ** i))))  # stride 1
-            #     model.add(Conv2D(kernel_size=(3, 64 * (2 ** i))))  # stride 1
-            #     # temporal batch  normalization  after  convolutional  layers  to regularize our network.
-            #
-            #     if i < 3:
-            #         # (i) for the same output temporal resolution, the layers have the same number of feature maps,
-            #         # (ii) when the temporal resolution  is halved,  the number  of feature  maps  is  doubled. -
-            #         TO_DO
-            #         # stackujeme feature mapy a vytvarame feature bloky
-            #
-            #         # The output of these convolutional blocks is a tensor of size 512×sd, where sd=s/2^p, p= 3
-            #         # the number of down-sampling operations.
-            #         # TODO s = 1024 a je to # characters - AKO?
-            #         model.add(MaxPooling2D(pool_size=(2, 2)))  # FIX_ME pool size zmenit # stride 2
-            #     else:
-            #         model.add(KMaxPooling(k=8))
-            #
-            # model.add(Dense(2048, activation='ReLU'))
-            # model.add(Dense(2048, activation='ReLU'))
-            # model.add(Dense(2, activation='softmax'))  # to_do softmax?
-
             # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c
             # hovory o architekture VDCNN
 
@@ -108,8 +79,8 @@ class DeepCNN:
                              activation="relu", strides=1))
             model.add(Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation="relu", strides=1))
             model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # rozdiel medzi max pool a max pooling
-            # padding="same"?
+            # todo rozdiel medzi max pool a max pooling
+            #      padding="same"?
 
             model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
             model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
@@ -130,16 +101,8 @@ class DeepCNN:
             # FIXME ValueError: Input 0 is incompatible with layer k_max_pooling_1: expected ndim=3, found ndim=4
             #  pretoze to pouzival na obrazky a mal tak 3 dim (w,h, channels), tu mame len 2, cize jednu umelo pridame
             #  ale potom nefunguje najdena funkcia k max poolingu
+            #   NATERAZ IDE
             model.add(KMaxPooling(k=8))
-
-            # model.add(Flatten())
-            # bez flatten: ValueError: Error when checking target: expected dense_3 to have 4 dimensions,
-            # but got array with shape (2, 1)
-            # pouzite flatten: ValueError: Error when checking target: expected dense_3 to have shape (2,)
-            # but got array with shape (1,)
-
-            # zmenene Y na 2D kde 1 = [0,1], 0 = [1, 0]
-            # TypeError: 'tuple' object is not an iterator
 
             model.add(Dense(units=2048, activation="relu"))
             model.add(Dense(units=2048, activation="relu"))
@@ -154,16 +117,22 @@ class DeepCNN:
                                          save_weights_only=False,
                                          mode='auto', period=1)
             early = EarlyStopping(monitor='val_acc', min_delta=0, patience=20, verbose=1, mode='auto')
-            # hist = model.fit(steps_per_epoch=100, generator=(X_train, Y_train)
-            #                            ,
-            #                            validation_data=(X_validate, Y_validate), validation_steps=10,
-            #                            epochs=100, callbacks=[checkpoint, early]
-            #                            )
 
-            hist = model.fit(steps_per_epoch=100, x=X_train, y=Y_train,
-                             # validation_data=(X_validate, Y_validate), validation_steps=10,
-                             epochs=100, callbacks=[checkpoint, early]
-                             )
+            # fixme musim znizovat batch_size, lebo Resource exhausted: OOM
+            #   po znizeni na 10
+            #     terminate called after throwing an instance of 'std::bad_alloc'
+            #     what():  std::bad_alloc
+            #   znizenie na 1
+            #     tensorflow.python.framework.errors_impl.InvalidArgumentError: Matrix size-incompatible: In[0]:
+            #     [1,458752], In[1]: [72,2048]
+            # 	  [[{{node dense_1/Relu}}]]
+
+            # Resource exhausted: OOM when allocating tensor with shape[90,3438,300,64]
+            # 90 training articlov, 3430 slov, 300 embedding, 64 features maps
+
+            hist = model.fit(steps_per_epoch=1, x=X_train, y=Y_train,
+                             validation_data=(X_validate, Y_validate), validation_steps=10,
+                             epochs=10, callbacks=[checkpoint, early])
 
             plt.plot(hist.history["acc"])
             plt.plot(hist.history['val_acc'])

@@ -39,13 +39,14 @@ def load_data(dataset):
     print("Vocabulary Size: {:d}".format(len(vocabulary_inv)))
 
     # Prepare embedding layer weights and convert inputs for static model
-    embedding_weights = train_word2vec(np.vstack((X_train, X_validate)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
+    embedding = train_word2vec(np.vstack((X_train, X_validate)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
                                        min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
-    X_train = np.stack([np.stack([embedding_weights[word] for word in sentence]) for sentence in X_train])
-    X_validate = np.stack([np.stack([embedding_weights[word] for word in sentence]) for sentence in X_validate])
+    # embedding_weights
+    X_train = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_train])
+    X_validate = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_validate])
     print("X_train static shape:", X_train.shape)
     print("X_validate static shape:", X_validate.shape)
-    return X_train, X_validate, Y_train, Y_validate
+    return X_train, X_validate, Y_train, Y_validate, embedding
 
 
 def clean_str(string):
@@ -248,7 +249,6 @@ def clean_text(original_text, dataset):
     # print(np.array(data).shape)
     # print(data)
     # else:
-    #     # fixme nacitat ostemmovane
     #     # data = np.loadtxt('stammed_' + dataset + '.txt', dtype='str')
     #     # data = np.loadtxt('stammed_' + dataset + '.txt', dtype=np.object)
     #     # data = data.tolist()
@@ -277,7 +277,7 @@ def clean_text(original_text, dataset):
 
 def bag_of_words(data):
     """
-    # todo
+    For each article in data create bag representation.
     """
     bag = {}
     for article in data:
@@ -304,7 +304,7 @@ def bag_of_words(data):
 
 def convert_to_bag_of_words_format(original_text, dataset):
     """
-    # todo
+    Cleans text and converts it to bag of words format.
     """
     data, all_data, max_art = clean_text(original_text, dataset)
 
