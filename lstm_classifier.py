@@ -2,6 +2,7 @@ from keras.layers import LSTM
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, GlobalAveragePooling1D
 from keras import optimizers
+from keras.callbacks import Callback
 import warnings
 from os import path
 
@@ -16,24 +17,50 @@ from os import path
 # We then average the outputs of the LSTMat each time step to obtain
 # a feature vector for a final logistic regression to predict the sentiment.
 
+batch_size = 64
+
+
+class OutputObserver(Callback):
+    """
+    callback to observe the output of the network
+    """
+
+    def __init__(self, X_train):
+        self.out_log = []
+        self.X_train = X_train
+
+    def on_epoch_end(self, epoch, logs={}):
+        print(self.model.predict(self.X_train, batch_size=batch_size))
+        self.out_log.append(self.model.predict(self.X_train, batch_size=batch_size))
+
+
 class LSTM_Classifier:
-    
-    @staticmethod
-    def lstm_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
+
+    def __init__(self):
+        self.model = None
+
+    def lstm_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
         warnings.filterwarnings(action='ignore')
     
-        if not path.exists("models/model_lstm_" + dataset + ".json") or not path.exists("models/model_lstm_" + dataset + ".h5"):
+        if not path.exists("models/model_lstm_" + dataset + ".json") or \
+                not path.exists("models/model_lstm_" + dataset + ".h5"):
     
             model = Sequential()
-            model.add(LSTM(512, return_sequences=True))
+            model.add(LSTM(512, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))
             model.add(GlobalAveragePooling1D())
     
             model.add(Dense(1, activation='sigmoid'))
 
             adam = optimizers.Adam(lr=0.01, clipnorm=5)
-            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['accuracy'])
+            model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
             # print(model.summary())
-            model.fit(X_train, Y_train, validation_data=(X_validate, Y_validate), epochs=10, batch_size=64)
+
+            output_observer = OutputObserver(X_train)
+            # TODO zmenil som batch size pre mensie trenovacie mnoziny
+            model.fit(X_train, Y_train, validation_data=(X_validate, Y_validate), epochs=10, batch_size=batch_size,
+                      callbacks=[output_observer])
+
+            print(output_observer.out_log)
     
             model_json = model.to_json()
             with open("models/model_lstm_" + dataset + ".json", "w") as json_file:
@@ -43,6 +70,7 @@ class LSTM_Classifier:
     
             scores = model.evaluate(X_validate, Y_validate, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
+            self.model = model
         else:
             json_file = open("models/model_lstm_" + dataset + ".json", 'r')
             loaded_model_json = json_file.read()
@@ -55,6 +83,7 @@ class LSTM_Classifier:
             print('test', loaded_model.predict(X_train))
             score = loaded_model.evaluate(X_validate, Y_validate, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+            self.model = loaded_model
     # TODO natrenovane LSTM stale dava vysledok cca 0.4491... -> opravit
 
 # # Recurrent layer

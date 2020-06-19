@@ -21,8 +21,12 @@ def naive_bayes(articles, labels, dataset):
 
     # test na natrenovani na sebe samom funguje
     # y_pred = gnb.fit(X_train, Y_train).predict(X_train)
-    y_pred = gnb.fit(X_train, Y_train).predict(X_validate)
+    model = gnb.fit(X_train, Y_train)
+    y_pred = model.predict(X_validate)
 
     # print(len(y_pred), Y_validate.shape)
     # print("Mislabeled:", (100 * (Y_train != y_pred).sum()), "%")
     print("Mislabeled:", (100 * (Y_validate != y_pred).sum()) / X_validate.shape[0], "%")
+
+    return model
+    # adversarial podla cosinusovej vzdialenosti vektorov (bags cosine distance)

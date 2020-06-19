@@ -52,8 +52,10 @@ class KMaxPooling(Layer):
 
 class DeepCNN:
 
-    @staticmethod
-    def deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
+    def __init__(self):
+        self.model = None
+
+    def deep_cnn_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
         warnings.filterwarnings(action='ignore')
 
         from keras.backend.tensorflow_backend import set_session
@@ -129,6 +131,7 @@ class DeepCNN:
 
             # Resource exhausted: OOM when allocating tensor with shape[90,3438,300,64]
             # 90 training articlov, 3430 slov, 300 embedding, 64 features maps
+            # ciastocny FIX - pouzit yelp
 
             hist = model.fit(steps_per_epoch=1, x=X_train, y=Y_train,
                              validation_data=(X_validate, Y_validate), validation_steps=10,
@@ -154,6 +157,7 @@ class DeepCNN:
 
             scores = model.evaluate(X_validate, Y_validate, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
+            self.model = model
         else:
             json_file = open("model_shallow_cnn_" + dataset + ".json", 'r')
             loaded_model_json = json_file.read()
@@ -165,3 +169,4 @@ class DeepCNN:
             loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
             score = loaded_model.evaluate(X_validate, Y_validate, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+            self.model = loaded_model

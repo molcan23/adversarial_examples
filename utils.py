@@ -9,6 +9,7 @@ from nltk.stem.porter import PorterStemmer
 from w2v import *
 
 import sys
+import tensorflow as tf
 from nltk.tokenize import sent_tokenize, word_tokenize
 
 
@@ -69,7 +70,7 @@ def clean_str(string):
     return string.strip().lower()
 
 
-def load_data_and_labels(dataset):
+def load_data_and_labels(dataset, for_bayes=False):
     """
     Loads 'dataset' data from file, splits the data into words and generates labels.
     Returns split sentences and labels.
@@ -77,12 +78,27 @@ def load_data_and_labels(dataset):
     # fixme spravne vratit validate a train
     name_of_file = cs.DATASET_PATHS[dataset]
     X_train, Y_train = [], []
-    with open(name_of_file, newline='') as csv_file:
-        news_reader = csv.reader(csv_file)
-        _ = next(csv_file)
-        for row in news_reader:
-            X_train.append(row[3])
-            Y_train.append([0, 1] if int(row[4]) == 1 else [1, 0])
+    counter = 0
+    if dataset == 'fake':
+        with open(name_of_file, newline='') as csv_file:
+            news_reader = csv.reader(csv_file)
+            _ = next(csv_file)
+            for row in news_reader:
+                if counter >= cs.DATASET_MAX[dataset]: break
+                X_train.append(row[3])
+                Y_train.append([0, 1] if int(row[4]) == 1 else [1, 0])
+                counter += 1
+    if dataset == 'yelp':
+        with open(name_of_file, newline='') as csv_file:
+            news_reader = csv.reader(csv_file)
+            for row in news_reader:
+                if counter >= cs.DATASET_MAX[dataset]: break
+                X_train.append(row[1])
+                # print(row[0], type(row[0]))
+                # print(row[1])
+                Y_train.append([0, 1] if row[0] == "2" else [1, 0])
+                # print()
+                counter += 1
 
     X_train = [clean_str(sent) for sent in X_train]
     X_train = [s.split(" ") for s in X_train]
@@ -103,7 +119,10 @@ def load_data_and_labels(dataset):
 
         cleaned_X_train.append(article)
 
-    return np.array(cleaned_X_train[:cs.DATASET_MAX[dataset]]), np.array(Y_train[:cs.DATASET_MAX[dataset]])
+    if for_bayes:
+        Y_train = [0 if i[0] == 1 else 1 for i in Y_train]
+
+    return np.array(cleaned_X_train), np.array(Y_train)
 
 
 def pad_sentences(sentences, padding_word="<PAD/>"):
@@ -149,11 +168,16 @@ def load_data_for_w2v(dataset):
     Loads and preprocessed data. Returns input vectors, labels, vocabulary, and inverse vocabulary.
     """
     # Load and preprocess data
+    # sentences, labels = load_data_and_labels(dataset)
+    # sentences_padded = pad_sentences(sentences)
+    # vocabulary, vocabulary_inv = build_vocab(sentences_padded)
+    # x, y = build_input_data(sentences_padded, labels, vocabulary)
+    # return [x, y, vocabulary, vocabulary_inv]
+
     sentences, labels = load_data_and_labels(dataset)
-    sentences_padded = pad_sentences(sentences)
-    vocabulary, vocabulary_inv = build_vocab(sentences_padded)
-    x, y = build_input_data(sentences_padded, labels, vocabulary)
-    return [x, y, vocabulary, vocabulary_inv]
+    vocabulary, vocabulary_inv = build_vocab(sentences)
+    x, y = build_input_data(sentences, labels, vocabulary)
+    return [tf.keras.preprocessing.sequence.pad_sequences(x, dtype='object'), y, vocabulary, vocabulary_inv]
 
 
 def batch_iter(data, batch_size, num_epochs):
@@ -178,26 +202,34 @@ def batch_iter(data, batch_size, num_epochs):
 csv.field_size_limit(sys.maxsize)
 
 
-def load_news_train_data(dataset):
+def load_bayes_train_data(dataset):
     """
     Loads 'dataset' data from file, splits the data into words and generates labels.
     Returns split sentences and labels.
     """
-    # fixme spravne vratit validate a train
     name_of_file = cs.DATASET_PATHS[dataset]
     X_train, Y_train = [], []
-    with open(name_of_file, newline='') as csv_file:
-        news_reader = csv.reader(csv_file)
-        _ = next(csv_file)
-        # news_reader.read()
-        for row in news_reader:
-            # print(row)
-            X_train.append(row[3])
-            Y_train.append(int(row[4]))
+    counter = 0
 
-    # print(len(X_train))
+    if dataset == 'fake':
+        with open(name_of_file, newline='') as csv_file:
+            news_reader = csv.reader(csv_file)
+            _ = next(csv_file)
+            for row in news_reader:
+                if counter >= cs.DATASET_MAX[dataset]: break
+                X_train.append(row[3])
+                Y_train.append(1 if int(row[4]) == 1 else 0)
+                counter += 1
+    if dataset == 'yelp':
+        with open(name_of_file, newline='') as csv_file:
+            news_reader = csv.reader(csv_file)
+            for row in news_reader:
+                if counter >= cs.DATASET_MAX[dataset]: break
+                X_train.append(row[1])
+                Y_train.append(1 if row[0] == "2" else 0)
+                counter += 1
 
-    return X_train[:cs.DATASET_MAX[dataset]], Y_train[:cs.DATASET_MAX[dataset]]
+    return X_train, Y_train
 
 
 def load_news_test_data(name_of_file, name_of_labels):
@@ -299,7 +331,7 @@ def bag_of_words(data):
                 bag_article.append(0)
         bag_representation.append(bag_article)
 
-    return np.array(bag_representation)
+    return bag, np.array(bag_representation)
 
 
 def convert_to_bag_of_words_format(original_text, dataset):
@@ -308,8 +340,8 @@ def convert_to_bag_of_words_format(original_text, dataset):
     """
     data, all_data, max_art = clean_text(original_text, dataset)
 
-    bag = bag_of_words(data)
+    bag, data = bag_of_words(data)
 
     train_size = int(len(original_text) * cs.TRAINING_PORTION)
 
-    return np.array(bag[:train_size]), np.array(bag[train_size:cs.DATASET_MAX[dataset]])
+    return np.array(data[:train_size]), np.array(data[train_size:cs.DATASET_MAX[dataset]]), bag

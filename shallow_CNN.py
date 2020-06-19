@@ -27,13 +27,15 @@ hidden_dims = 50  # fixme aky pocet?
 
 # Training parameters
 batch_size = 30
-num_epochs = 20
+num_epochs = 10
 
 
 class ShallowCNN:
 
-    @staticmethod
-    def shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset):
+    def __init__(self):
+        self.model = None
+
+    def shallow_cnn_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
         if not path.exists("models/model_shallow_cnn_" + dataset + ".json") or \
                 not path.exists("models/model_shallow_cnn_" + dataset + ".h5"):
 
@@ -70,6 +72,7 @@ class ShallowCNN:
 
             scores = model.evaluate(X_validate, Y_validate, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
+            self.model = model
         else:
             # Load model
             json_file = open("models/model_shallow_cnn_" + dataset + ".json", 'r')
@@ -82,3 +85,4 @@ class ShallowCNN:
             loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
             score = loaded_model.evaluate(X_validate, Y_validate, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+            self.model = loaded_model
