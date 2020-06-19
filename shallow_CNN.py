@@ -72,6 +72,7 @@ class ShallowCNN:
 
             scores = model.evaluate(X_validate, Y_validate, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
+
             self.model = model
         else:
             # Load model

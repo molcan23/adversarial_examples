@@ -12,6 +12,8 @@ import sys
 import tensorflow as tf
 from nltk.tokenize import sent_tokenize, word_tokenize
 
+import global_variables as gv
+
 
 def load_data1(dataset):
     x, y, vocabulary, vocabulary_inv_list = load_data_for_w2v(dataset)
@@ -27,13 +29,13 @@ def load_data1(dataset):
     X_validate = x[train_len:]
     Y_validate = y[train_len:]
 
-    return X_train, Y_train, X_validate, Y_validate, vocabulary_inv
+    return X_train, Y_train, X_validate, Y_validate, vocabulary_inv, vocabulary
 
 
 def load_data(dataset):
     # Data Preparation
     print("Load data...")
-    X_train, Y_train, X_validate, Y_validate, vocabulary_inv = load_data1(dataset)
+    X_train, Y_train, X_validate, Y_validate, vocabulary_inv, vocabulary = load_data1(dataset)
 
     print("X_train shape:", X_train.shape)
     print("X_validate shape:", X_validate.shape)
@@ -41,13 +43,13 @@ def load_data(dataset):
 
     # Prepare embedding layer weights and convert inputs for static model
     embedding = train_word2vec(np.vstack((X_train, X_validate)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
-                                       min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
+                               min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
     # embedding_weights
     X_train = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_train])
     X_validate = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_validate])
     print("X_train static shape:", X_train.shape)
     print("X_validate static shape:", X_validate.shape)
-    return X_train, X_validate, Y_train, Y_validate, embedding
+    return X_train, X_validate, Y_train, Y_validate, embedding, vocabulary
 
 
 def clean_str(string):
@@ -75,7 +77,6 @@ def load_data_and_labels(dataset, for_bayes=False):
     Loads 'dataset' data from file, splits the data into words and generates labels.
     Returns split sentences and labels.
     """
-    # fixme spravne vratit validate a train
     name_of_file = cs.DATASET_PATHS[dataset]
     X_train, Y_train = [], []
     counter = 0
@@ -125,21 +126,6 @@ def load_data_and_labels(dataset, for_bayes=False):
     return np.array(cleaned_X_train), np.array(Y_train)
 
 
-def pad_sentences(sentences, padding_word="<PAD/>"):
-    """
-    Pads all sentences to the same length. The length is defined by the longest sentence.
-    Returns padded sentences.
-    """
-    sequence_length = max(len(x) for x in sentences)
-    padded_sentences = []
-    for i in range(len(sentences)):
-        sentence = sentences[i]
-        num_padding = sequence_length - len(sentence)
-        new_sentence = sentence + [padding_word] * num_padding
-        padded_sentences.append(new_sentence)
-    return padded_sentences
-
-
 def build_vocab(sentences):
     """
     Builds a vocabulary mapping from word to index based on the sentences.
@@ -160,6 +146,7 @@ def build_input_data(sentences, labels, vocabulary):
     """
     x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
     y = np.array(labels)
+    # TODO toto musim zapracovat do adversarialu
     return [x, y]
 
 
@@ -167,16 +154,12 @@ def load_data_for_w2v(dataset):
     """
     Loads and preprocessed data. Returns input vectors, labels, vocabulary, and inverse vocabulary.
     """
-    # Load and preprocess data
-    # sentences, labels = load_data_and_labels(dataset)
-    # sentences_padded = pad_sentences(sentences)
-    # vocabulary, vocabulary_inv = build_vocab(sentences_padded)
-    # x, y = build_input_data(sentences_padded, labels, vocabulary)
-    # return [x, y, vocabulary, vocabulary_inv]
 
     sentences, labels = load_data_and_labels(dataset)
     vocabulary, vocabulary_inv = build_vocab(sentences)
     x, y = build_input_data(sentences, labels, vocabulary)
+    gv.max_article_len = max([len(i) for i in x])
+    print('xxxx', x[0])
     return [tf.keras.preprocessing.sequence.pad_sequences(x, dtype='object'), y, vocabulary, vocabulary_inv]
 
 
@@ -252,13 +235,12 @@ def load_news_test_data(name_of_file, name_of_labels):
     return X_test, Y_test
 
 
-def clean_text(original_text, dataset):
+def clean_text(original_text):
     """
     Removes everything unneeded. (stemming, stripping..)
     """
     data = []
     all_data = []
-    # if not path.exists('stammed_' + dataset + '.txt'):
     max_art = 0
 
     for x in original_text:
@@ -272,39 +254,11 @@ def clean_text(original_text, dataset):
             stemmed = [porter.stem(word) for word in words]
             article += stemmed
             all_data.append(stemmed)
-            # max_word = len(stemmed) if len(stemmed) > max_word else max_word
 
         data.append(article)
         max_art = len(article) if len(article) > max_art else max_art
 
-    np.savetxt('stammed_' + dataset + '.txt', data, fmt='%s', delimiter=",")
-    # print(np.array(data).shape)
-    # print(data)
-    # else:
-    #     # data = np.loadtxt('stammed_' + dataset + '.txt', dtype='str')
-    #     # data = np.loadtxt('stammed_' + dataset + '.txt', dtype=np.object)
-    #     # data = data.tolist()
-    #     with open('stammed_' + dataset + '.txt', 'r') as f:
-    #         whole = f.read().splitlines()
-    #
-    #         for article in whole:
-    #             print(article)
-    #             article = article[2:-2].split('], [')
-    #             _article = []
-    #             for sentence in article:
-    #                 print(sentence)
-    #                 _sentence = []
-    #                 for word in sentence:
-    #                     _sentence.append(word)
-    #                 _article.append(_sentence)
-    #                 all_data.append(_sentence)
-    #             data = [_article]
-    #        # data = np.genfromtxt('stammed_' + dataset + '.txt', dtype='str', delimiter=",")
-
-    # train_size = int(len(original_text) * cs.TRAINING_PORTION)
-    # print(max_word, max_art)
-
-    return data, all_data, max_art  # , max_word
+    return data, all_data, max_art
 
 
 def bag_of_words(data):
