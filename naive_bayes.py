@@ -13,7 +13,7 @@ def naive_bayes(articles, labels, dataset):
     Y_validate = np.array(labels[train_size:cs.DATASET_MAX[dataset]])
     # print(sum(Y_validate), len(Y_validate))
 
-    X_train, X_validate = convert_to_bag_of_words_format(articles, dataset)
+    X_train, X_validate, bag = convert_to_bag_of_words_format(articles, dataset)
 
     [print(i) for i in X_train]
     print(X_validate)
@@ -28,5 +28,5 @@ def naive_bayes(articles, labels, dataset):
     # print("Mislabeled:", (100 * (Y_train != y_pred).sum()), "%")
     print("Mislabeled:", (100 * (Y_validate != y_pred).sum()) / X_validate.shape[0], "%")
 
-    return model
+    return model, bag
     # adversarial podla cosinusovej vzdialenosti vektorov (bags cosine distance)

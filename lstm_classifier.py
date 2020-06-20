@@ -1,6 +1,5 @@
-from keras.layers import LSTM
 from keras.models import Sequential, model_from_json
-from keras.layers import Dense, GlobalAveragePooling1D
+from keras.layers import Dense, GlobalAveragePooling1D, LSTM
 from keras import optimizers
 from keras.callbacks import Callback
 import warnings
@@ -51,12 +50,11 @@ class LSTM_Classifier:
     
             model.add(Dense(1, activation='sigmoid'))
 
-            adam = optimizers.Adam(lr=0.01, clipnorm=5)
+            # adam = optimizers.Adam(lr=0.01, clipnorm=5)
             model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
             # print(model.summary())
 
             output_observer = OutputObserver(X_train)
-            # TODO zmenil som batch size pre mensie trenovacie mnoziny
             model.fit(X_train, Y_train, validation_data=(X_validate, Y_validate), epochs=10, batch_size=batch_size,
                       callbacks=[output_observer])
 

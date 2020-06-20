@@ -1,18 +1,14 @@
-import numpy as np
 import re
-import itertools
-from collections import Counter
-import constants as cs
 import csv
-from nltk.stem.porter import PorterStemmer
-
-from w2v import *
-
 import sys
+import itertools
+from w2v import *
 import tensorflow as tf
-from nltk.tokenize import sent_tokenize, word_tokenize
-
+import constants as cs
 import global_variables as gv
+from collections import Counter
+from nltk.stem.porter import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 
 def load_data1(dataset):
@@ -49,6 +45,7 @@ def load_data(dataset):
     X_validate = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_validate])
     print("X_train static shape:", X_train.shape)
     print("X_validate static shape:", X_validate.shape)
+
     return X_train, X_validate, Y_train, Y_validate, embedding, vocabulary
 
 
@@ -104,26 +101,30 @@ def load_data_and_labels(dataset, for_bayes=False):
     X_train = [clean_str(sent) for sent in X_train]
     X_train = [s.split(" ") for s in X_train]
 
-    cleaned_X_train = []
-    porter = PorterStemmer()
+    # nemozem pouzit, pretoze ak ostemujem, potom vysledna veta nebude mat zmysel
+    # napr. budeme mat niekde vo vete building a nahradime to 'hous' bez e, co ale nevyzera 'prirodzene'
 
-    for x in X_train:
-        # print(x)
+    # cleaned_X_train = []
+    # porter = PorterStemmer()
+    #
+    # for x in X_train:
+    #     # print(x)
+    #
+    #     article = []
+    #     for i in x:
+    #         stripped = i.translate(cs.TABLE)
+    #         if not stripped.isalpha() or stripped in cs.STOP_WORDS:
+    #             continue
+    #         stemmed = porter.stem(stripped)
+    #         article.append(stemmed)
+    #
+    #     cleaned_X_train.append(article)
+    #
+    # if for_bayes:
+    #     Y_train = [0 if i[0] == 1 else 1 for i in Y_train]
 
-        article = []
-        for i in x:
-            stripped = i.translate(cs.TABLE)
-            if not stripped.isalpha() or stripped in cs.STOP_WORDS:
-                continue
-            stemmed = porter.stem(stripped)
-            article.append(stemmed)
-
-        cleaned_X_train.append(article)
-
-    if for_bayes:
-        Y_train = [0 if i[0] == 1 else 1 for i in Y_train]
-
-    return np.array(cleaned_X_train), np.array(Y_train)
+    # return np.array(cleaned_X_train), np.array(Y_train)
+    return np.array(X_train), np.array(Y_train)
 
 
 def build_vocab(sentences):
@@ -146,7 +147,6 @@ def build_input_data(sentences, labels, vocabulary):
     """
     x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
     y = np.array(labels)
-    # TODO toto musim zapracovat do adversarialu
     return [x, y]
 
 
@@ -292,7 +292,7 @@ def convert_to_bag_of_words_format(original_text, dataset):
     """
     Cleans text and converts it to bag of words format.
     """
-    data, all_data, max_art = clean_text(original_text, dataset)
+    data, all_data, max_art = clean_text(original_text)
 
     bag, data = bag_of_words(data)
 

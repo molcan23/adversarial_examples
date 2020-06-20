@@ -1,16 +1,3 @@
-"""
-Train convolutional network for sentiment analysis:
-"Convolutional Neural Networks for Sentence Classification" by Yoon Kim
-
-embedding_dim = 300
-filter_size = 3
-num_filters = 100
-dropout_prob = 0.5
-hidden_dims = 50
-- 1 filter size instead of original 3
-- sliding Max Pooling instead of original Global Pooling  # fixme
-"""
-
 import numpy as np
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Dropout, Flatten, Input, MaxPooling1D, Convolution1D
@@ -23,7 +10,7 @@ embedding_dim = 300
 filter_size = 3
 num_filters = 100
 dropout_prob = 0.5
-hidden_dims = 50  # fixme aky pocet?
+hidden_dims = 50
 
 # Training parameters
 batch_size = 30
@@ -39,12 +26,8 @@ class ShallowCNN:
         if not path.exists("models/model_shallow_cnn_" + dataset + ".json") or \
                 not path.exists("models/model_shallow_cnn_" + dataset + ".h5"):
 
-            # Build model
-            # sequence_length = X_train.shape[1]
             model = Sequential()
-            # model.add(Input((sequence_length, embedding_dim)))
 
-            # Convolutional block
             model.add(Convolution1D(filters=num_filters,
                                     kernel_size=filter_size,
                                     padding="valid",
@@ -59,7 +42,6 @@ class ShallowCNN:
 
             model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
-            # Train the model
             model.fit(X_train, Y_train, batch_size=batch_size, epochs=num_epochs,
                       validation_data=(X_validate, Y_validate), verbose=2)
 

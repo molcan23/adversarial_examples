@@ -13,7 +13,7 @@ MIN_COUNT = 5
 DATASET_PATHS = {'fake': 'data/fake-news/train.csv',
                  'yelp': 'data/yelp-review-polarity/yelp_review_polarity_csv/train.csv'}
 DATASET_NAMES = {'fake': 'fake', 'yelp': 'yelp'}
-DATASET_MAX = {'fake': 30, 'yelp': 3000}
+DATASET_MAX = {'fake': 30, 'yelp': 10}
 # malo pamate uz aj pre 600, pre 500 horsia val acc ako pri 300 -> najvysia vsak je len 0.6667
 
 EXP_SIZE = 100
@@ -28,8 +28,8 @@ TAU = .7
 GAMA1 = .2
 GAMA2 = 2
 DELTA = .5
-NEIGHBORHOOD = 15
+NEIGHBORHOOD = 20
 
-NGRAM_ORDER = 5
+NGRAM_ORDER = 3
 # # of similar words returned by find_closest_embeddings(word)
-GloVE_LEN = 10
+GloVe_LEN = 20

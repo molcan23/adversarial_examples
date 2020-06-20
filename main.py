@@ -10,9 +10,6 @@ dataset = 'yelp'
 
 X_train, X_validate, Y_train, Y_validate, embedding, vocabulary = load_data(dataset)
 
-# print(Y_train)
-# print(X_train[:2])
-
 # Naive Bayes
 
 articles, labels = load_bayes_train_data(dataset)
@@ -22,7 +19,7 @@ train_size = int(cs.DATASET_MAX[dataset] * cs.TRAINING_PORTION)
 X_test = articles[train_size: cs.DATASET_MAX[dataset]]
 Y_test = np.array(labels[train_size:cs.DATASET_MAX[dataset]])
 
-# bayes_classifier = naive_bayes(articles, labels, dataset)
+# bayes_classifier, bayes_bag = naive_bayes(articles, labels, dataset)
 # bayes_adversarial = AdversarialBayes(bag, X_test, Y_test, bayes_classifier)
 
 
@@ -38,20 +35,19 @@ Y_test = np.array(labels[train_size:cs.DATASET_MAX[dataset]])
 # lstm_adversarial.evaluation()
 
 # Shallow word-level convolutional network
-shallow = ShallowCNN()
-shallow.shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
-shallow_classifier = shallow.model
+# shallow = ShallowCNN()
+# shallow.shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+# shallow_classifier = shallow.model
 #
-shallow_adversarial = AdversarialExmaples(embedding, X_test, Y_test, X_train, shallow_classifier, vocabulary)
-print('aaaaaa')
+# shallow_adversarial = AdversarialExmaples(embedding, X_test, Y_test, X_train, shallow_classifier, vocabulary)
 # shallow_adversarial.evaluation()
 
 # shallow_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
 
 # Deep  character-level  convolutional  networks
-# deep = DeepCNN()
-# deep.deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
-# deep_classifier = deep.model
+deep = DeepCNN()
+deep.deep_cnn_classifier(X_train, X_validate, Y_train, Y_validate, dataset)
+deep_classifier = deep.model
 #
 # deep_adversarial = AdversarialExmaples(embedding, X_test, Y_test, deep_classifier)
 # deep_adversarial.evaluation()

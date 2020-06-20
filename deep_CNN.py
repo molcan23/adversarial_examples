@@ -1,14 +1,14 @@
-from keras.models import Sequential, model_from_json
 import warnings
 from os import path
-
-import keras, os
-from keras.models import Sequential
+import keras
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Conv2D, MaxPool2D, Flatten
-
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, EarlyStopping
-import matplotlib.pyplot as plt
+from keras.backend.tensorflow_backend import set_session
+from keras.engine import Layer, InputSpec
+import tensorflow as tf
+
 
 # Deep  character-level  CNN. We  implement  the  character-level  network  of Conneau et al. (2016),
 # which includes 4 stages.  Each stage has 2 convolutional layers with batch normalization and 1 max-pooling layer;
@@ -17,11 +17,6 @@ import matplotlib.pyplot as plt
 # The resulting activations in R4096 are classified by 3 fully connected layers.
 
 # https://arxiv.org/pdf/1606.01781.pdf strana 4
-
-
-from keras.engine import Layer, InputSpec
-from keras.layers import Flatten
-import tensorflow as tf
 
 
 class KMaxPooling(Layer):
@@ -58,21 +53,16 @@ class DeepCNN:
     def deep_cnn_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
         warnings.filterwarnings(action='ignore')
 
-        from keras.backend.tensorflow_backend import set_session
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
         sess = tf.Session(config=config)
         set_session(sess)
 
-        # FIXME spravne pozmenenie siete z image recognition na NLP problem
         X_train = X_train.reshape(X_train.shape + (1,))
         X_validate = X_validate.reshape(X_validate.shape + (1,))
 
         if not path.exists("model_shallow_cnn" + dataset + ".json") or \
                 not path.exists("model_shallow_cnn" + dataset + ".h5"):
-
-            # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c
-            # hovory o architekture VDCNN
 
             input_shape = X_train[0].shape
 
@@ -81,8 +71,6 @@ class DeepCNN:
                              activation="relu", strides=1))
             model.add(Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation="relu", strides=1))
             model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
-            # todo rozdiel medzi max pool a max pooling
-            #      padding="same"?
 
             model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
             model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu"))
@@ -100,10 +88,6 @@ class DeepCNN:
             model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="same", activation="relu"))
             model.add(MaxPool2D(pool_size=(2, 2), strides=(2, 2)))
 
-            # FIXME ValueError: Input 0 is incompatible with layer k_max_pooling_1: expected ndim=3, found ndim=4
-            #  pretoze to pouzival na obrazky a mal tak 3 dim (w,h, channels), tu mame len 2, cize jednu umelo pridame
-            #  ale potom nefunguje najdena funkcia k max poolingu
-            #   NATERAZ IDE
             model.add(KMaxPooling(k=8))
 
             model.add(Dense(units=2048, activation="relu"))
@@ -120,34 +104,11 @@ class DeepCNN:
                                          mode='auto', period=1)
             early = EarlyStopping(monitor='val_acc', min_delta=0, patience=20, verbose=1, mode='auto')
 
-            # fixme musim znizovat batch_size, lebo Resource exhausted: OOM
-            #   po znizeni na 10
-            #     terminate called after throwing an instance of 'std::bad_alloc'
-            #     what():  std::bad_alloc
-            #   znizenie na 1
-            #     tensorflow.python.framework.errors_impl.InvalidArgumentError: Matrix size-incompatible: In[0]:
-            #     [1,458752], In[1]: [72,2048]
-            # 	  [[{{node dense_1/Relu}}]]
+            # Resource exhausted: OOM when allocating tensor with shape[90,3438,300,64]  # este pre fake_news
 
-            # Resource exhausted: OOM when allocating tensor with shape[90,3438,300,64]
-            # 90 training articlov, 3430 slov, 300 embedding, 64 features maps
-            # ciastocny FIX - pouzit yelp
-
-            hist = model.fit(steps_per_epoch=1, x=X_train, y=Y_train,
-                             validation_data=(X_validate, Y_validate), validation_steps=10,
-                             epochs=10, callbacks=[checkpoint, early])
-
-            plt.plot(hist.history["acc"])
-            plt.plot(hist.history['val_acc'])
-            plt.plot(hist.history['loss'])
-            plt.plot(hist.history['val_loss'])
-            plt.title("model accuracy")
-            plt.ylabel("Accuracy")
-            plt.xlabel("Epoch")
-            plt.legend(["Accuracy", "Validation Accuracy", "loss", "Validation Loss"])
-            plt.show()
-
-            # print(model.summary())
+            model.fit(steps_per_epoch=1, x=X_train, y=Y_train,
+                      # validation_data=(X_validate, Y_validate), validation_steps=10,
+                      epochs=10, callbacks=[checkpoint, early])
 
             model_json = model.to_json()
             with open("model_shallow_cnn" + dataset + ".json", "w") as json_file:
