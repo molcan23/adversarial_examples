@@ -1,9 +1,11 @@
 from keras.models import Sequential, model_from_json
-from keras.layers import Dense, GlobalAveragePooling1D, LSTM
+from keras.layers import Dense, GlobalAveragePooling1D, LSTM, Dropout, Embedding, Flatten
 from keras import optimizers
 from keras.callbacks import Callback
 import warnings
 from os import path
+import global_variables as gv
+import constants as cs
 
 
 # LSTM
@@ -29,7 +31,7 @@ class OutputObserver(Callback):
         self.X_train = X_train
 
     def on_epoch_end(self, epoch, logs={}):
-        print(self.model.predict(self.X_train, batch_size=batch_size))
+        print(self.model.predict(self.X_train, batch_size=batch_size)[:10])
         self.out_log.append(self.model.predict(self.X_train, batch_size=batch_size))
 
 
@@ -38,24 +40,22 @@ class LSTM_Classifier:
     def __init__(self):
         self.model = None
 
-    def lstm_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
+    def lstm_classifier(self, X_train, X_test, Y_train, Y_test, dataset):
         warnings.filterwarnings(action='ignore')
     
         if not path.exists("models/model_lstm_" + dataset + ".json") or \
                 not path.exists("models/model_lstm_" + dataset + ".h5"):
     
             model = Sequential()
-            model.add(LSTM(512, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))
+            model.add(LSTM(512, return_sequences=True, dropout=0.5, recurrent_dropout=0.5, bias_regularizer='l1'))
             model.add(GlobalAveragePooling1D())
-    
             model.add(Dense(1, activation='sigmoid'))
-
-            # adam = optimizers.Adam(lr=0.01, clipnorm=5)
-            model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
-            # print(model.summary())
+            optimizer = optimizers.Adam(lr=.001, decay=0, clipnorm=5)
+            model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
             output_observer = OutputObserver(X_train)
-            model.fit(X_train, Y_train, validation_data=(X_validate, Y_validate), epochs=10, batch_size=batch_size,
+
+            model.fit(X_train, Y_train, validation_split=.2, epochs=5, batch_size=batch_size,
                       callbacks=[output_observer])
 
             print(output_observer.out_log)
@@ -66,7 +66,7 @@ class LSTM_Classifier:
             model.save_weights("models/model_lstm_" + dataset + ".h5")
             print("Saved model to disk")
     
-            scores = model.evaluate(X_validate, Y_validate, verbose=0)
+            scores = model.evaluate(X_test, Y_test, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
             self.model = model
         else:
@@ -79,11 +79,7 @@ class LSTM_Classifier:
     
             loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
             print('test', loaded_model.predict(X_train))
-            score = loaded_model.evaluate(X_validate, Y_validate, verbose=0)
+            score = loaded_model.evaluate(X_test, Y_test, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
             self.model = loaded_model
-    # TODO natrenovane LSTM stale dava vysledok cca 0.4491... -> opravit
-
-# # Recurrent layer
-# model.add(LSTM(64, return_sequences=False,
-#                dropout=0.1, recurrent_dropout=0.1))
+    # TODO natrenovane LSTM stale dava vysledok cca rovnake... -> opravit

@@ -1,13 +1,13 @@
 import re
 import csv
 import sys
+import string
 import itertools
 from w2v import *
 import tensorflow as tf
 import constants as cs
 import global_variables as gv
 from collections import Counter
-from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
 
@@ -22,31 +22,33 @@ def load_data1(dataset):
     train_len = int(len(x) * 0.9)
     X_train = x[:train_len]
     Y_train = y[:train_len]
-    X_validate = x[train_len:]
-    Y_validate = y[train_len:]
+    X_test = x[train_len:]
+    Y_test = y[train_len:]
 
-    return X_train, Y_train, X_validate, Y_validate, vocabulary_inv, vocabulary
+    return X_train, Y_train, X_test, Y_test, vocabulary_inv, vocabulary
 
 
 def load_data(dataset):
     # Data Preparation
     print("Load data...")
-    X_train, Y_train, X_validate, Y_validate, vocabulary_inv, vocabulary = load_data1(dataset)
+    X_train, Y_train, X_test, Y_test, vocabulary_inv, vocabulary = load_data1(dataset)
 
     print("X_train shape:", X_train.shape)
-    print("X_validate shape:", X_validate.shape)
+    print("X_test shape:", X_test.shape)
     print("Vocabulary Size: {:d}".format(len(vocabulary_inv)))
 
     # Prepare embedding layer weights and convert inputs for static model
-    embedding = train_word2vec(np.vstack((X_train, X_validate)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
+    embedding = train_word2vec(np.vstack((X_train, X_test)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
                                min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
     # embedding_weights
-    X_train = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_train])
-    X_validate = np.stack([np.stack([embedding['weights'][word] for word in sentence]) for sentence in X_validate])
+    X_train = np.stack([np.stack([embedding['weights'][word].astype('float32') for word in sentence])
+                        for sentence in X_train])
+    X_test = np.stack([np.stack([embedding['weights'][word].astype('float32') for word in sentence])
+                       for sentence in X_test])
     print("X_train static shape:", X_train.shape)
-    print("X_validate static shape:", X_validate.shape)
+    print("X_test static shape:", X_test.shape)
 
-    return X_train, X_validate, Y_train, Y_validate, embedding, vocabulary
+    return X_train, X_test, Y_train, Y_test, embedding, vocabulary
 
 
 def clean_str(string):
@@ -98,33 +100,9 @@ def load_data_and_labels(dataset, for_bayes=False):
                 # print()
                 counter += 1
 
-    X_train = [clean_str(sent) for sent in X_train]
-    X_train = [s.split(" ") for s in X_train]
-
-    # nemozem pouzit, pretoze ak ostemujem, potom vysledna veta nebude mat zmysel
-    # napr. budeme mat niekde vo vete building a nahradime to 'hous' bez e, co ale nevyzera 'prirodzene'
-
-    # cleaned_X_train = []
-    # porter = PorterStemmer()
-    #
-    # for x in X_train:
-    #     # print(x)
-    #
-    #     article = []
-    #     for i in x:
-    #         stripped = i.translate(cs.TABLE)
-    #         if not stripped.isalpha() or stripped in cs.STOP_WORDS:
-    #             continue
-    #         stemmed = porter.stem(stripped)
-    #         article.append(stemmed)
-    #
-    #     cleaned_X_train.append(article)
-    #
-    # if for_bayes:
-    #     Y_train = [0 if i[0] == 1 else 1 for i in Y_train]
-
-    # return np.array(cleaned_X_train), np.array(Y_train)
-    return np.array(X_train), np.array(Y_train)
+    X_train = [clean_str(art) for art in X_train]
+    data = clean_text(X_train)
+    return np.array(data), np.array(Y_train)
 
 
 def build_vocab(sentences):
@@ -132,6 +110,7 @@ def build_vocab(sentences):
     Builds a vocabulary mapping from word to index based on the sentences.
     Returns vocabulary mapping and inverse vocabulary mapping.
     """
+
     # Build vocabulary
     word_counts = Counter(itertools.chain(*sentences))
     # Mapping from index to word
@@ -145,7 +124,8 @@ def build_input_data(sentences, labels, vocabulary):
     """
     Maps sentencs and labels to vectors based on a vocabulary.
     """
-    x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
+
+    x = np.array([[vocabulary[word] for word in sentence if word in vocabulary] for sentence in sentences])
     y = np.array(labels)
     return [x, y]
 
@@ -159,7 +139,6 @@ def load_data_for_w2v(dataset):
     vocabulary, vocabulary_inv = build_vocab(sentences)
     x, y = build_input_data(sentences, labels, vocabulary)
     gv.max_article_len = max([len(i) for i in x])
-    print('xxxx', x[0])
     return [tf.keras.preprocessing.sequence.pad_sequences(x, dtype='object'), y, vocabulary, vocabulary_inv]
 
 
@@ -167,6 +146,7 @@ def batch_iter(data, batch_size, num_epochs):
     """
     Generates a batch iterator for a dataset.
     """
+
     data = np.array(data)
     data_size = len(data)
     num_batches_per_epoch = int(len(data) / batch_size) + 1
@@ -190,6 +170,7 @@ def load_bayes_train_data(dataset):
     Loads 'dataset' data from file, splits the data into words and generates labels.
     Returns split sentences and labels.
     """
+
     name_of_file = cs.DATASET_PATHS[dataset]
     X_train, Y_train = [], []
     counter = 0
@@ -219,6 +200,7 @@ def load_news_test_data(name_of_file, name_of_labels):
     """
     Same as above but for test set.
     """
+
     X_test, Y_test = [], []
     with open(name_of_file, newline='') as csvfile:
         news_reader = csv.reader(csvfile)
@@ -239,6 +221,7 @@ def clean_text(original_text):
     """
     Removes everything unneeded. (stemming, stripping..)
     """
+
     data = []
     all_data = []
     max_art = 0
@@ -247,35 +230,35 @@ def clean_text(original_text):
         article = []
         for i in sent_tokenize(x):
             temp = [j.lower() for j in word_tokenize(i)]
-            stripped = [w.translate(cs.TABLE) for w in temp]
+            table = str.maketrans('', '', string.punctuation)
+            stripped = [w.translate(table) for w in temp]
             words = [word for word in stripped if word.isalpha()]
-            words = [w for w in words if w not in cs.STOP_WORDS]
-            porter = PorterStemmer()
-            stemmed = [porter.stem(word) for word in words]
-            article += stemmed
-            all_data.append(stemmed)
 
+            # stop_words = set(stopwords.words('english'))
+            words = [w for w in words if not w in cs.STOP_WORDS]
+            article += words
+            all_data.append(words)
         data.append(article)
         max_art = len(article) if len(article) > max_art else max_art
 
-    return data, all_data, max_art
+    return data  # , all_data, max_art
 
 
-def bag_of_words(data):
+def bag_of_words(data, bag={}):
     """
     For each article in data create bag representation.
     """
-    bag = {}
-    for article in data:
-        _article = []
-        for word in article:
-            if word in bag:
-                bag[word] += 1
-            else:
-                bag[word] = 1
+
+    if not bag:
+        for article in data:
+            _article = []
+            for word in article:
+                if word in bag:
+                    bag[word] += 1
+                else:
+                    bag[word] = 1
 
     bag_representation = []
-
     for article in data:
         bag_article = []
         for word in bag:
@@ -292,7 +275,8 @@ def convert_to_bag_of_words_format(original_text, dataset):
     """
     Cleans text and converts it to bag of words format.
     """
-    data, all_data, max_art = clean_text(original_text)
+
+    data = clean_text(original_text)
 
     bag, data = bag_of_words(data)
 

@@ -22,7 +22,7 @@ class ShallowCNN:
     def __init__(self):
         self.model = None
 
-    def shallow_cnn_classifier(self, X_train, X_validate, Y_train, Y_validate, dataset):
+    def shallow_cnn_classifier(self, X_train, X_test, Y_train, Y_test, dataset):
         if not path.exists("models/model_shallow_cnn_" + dataset + ".json") or \
                 not path.exists("models/model_shallow_cnn_" + dataset + ".h5"):
 
@@ -43,7 +43,7 @@ class ShallowCNN:
             model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
             model.fit(X_train, Y_train, batch_size=batch_size, epochs=num_epochs,
-                      validation_data=(X_validate, Y_validate), verbose=2)
+                      validation_split=.2, verbose=2)
 
             # Save model
             model_json = model.to_json()
@@ -52,7 +52,7 @@ class ShallowCNN:
             model.save_weights("models/model_shallow_cnn_" + dataset + ".h5")
             print("Saved model to disk")
 
-            scores = model.evaluate(X_validate, Y_validate, verbose=0)
+            scores = model.evaluate(X_test, Y_test, verbose=0)
             print("Accuracy: %.2f%%" % (scores[1] * 100))
 
             self.model = model
@@ -66,6 +66,6 @@ class ShallowCNN:
             print("Loaded model from disk")
 
             loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-            score = loaded_model.evaluate(X_validate, Y_validate, verbose=0)
+            score = loaded_model.evaluate(X_test, Y_test, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
             self.model = loaded_model

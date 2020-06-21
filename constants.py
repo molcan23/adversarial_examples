@@ -3,7 +3,7 @@ import string
 
 
 TABLE = str.maketrans('', '', string.punctuation)
-STOP_WORDS = set(stopwords.words('english'))
+STOP_WORDS = stopwords.words('english')  # set(stopwords.words('english'))
 TRAINING_PORTION = .9
 
 EMBEDDING_DIM = 300
@@ -13,8 +13,7 @@ MIN_COUNT = 5
 DATASET_PATHS = {'fake': 'data/fake-news/train.csv',
                  'yelp': 'data/yelp-review-polarity/yelp_review_polarity_csv/train.csv'}
 DATASET_NAMES = {'fake': 'fake', 'yelp': 'yelp'}
-DATASET_MAX = {'fake': 30, 'yelp': 10}
-# malo pamate uz aj pre 600, pre 500 horsia val acc ako pri 300 -> najvysia vsak je len 0.6667
+DATASET_MAX = {'fake': 30, 'yelp': 50}
 
 EXP_SIZE = 100
 
