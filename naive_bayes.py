@@ -2,10 +2,6 @@ from sklearn.naive_bayes import MultinomialNB
 from utils import *
 
 
-# convert each article into a bag-of-words representation
-# binarize the word features and use a multinomial model for classification
-
-
 def naive_bayes(articles, labels, dataset):
     train_size = int(cs.DATASET_MAX[dataset] * cs.TRAINING_PORTION)
 
@@ -21,4 +17,3 @@ def naive_bayes(articles, labels, dataset):
     print("Mislabeled:", (100 * (Y_test != y_pred).sum()) / X_test.shape[0], "%")
 
     return model, bag
-    # adversarial podla cosinusovej vzdialenosti vektorov (bags cosine distance)

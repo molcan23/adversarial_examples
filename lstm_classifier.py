@@ -47,7 +47,7 @@ class LSTM_Classifier:
                 not path.exists("models/model_lstm_" + dataset + ".h5"):
     
             model = Sequential()
-            model.add(LSTM(512, return_sequences=True, dropout=0.5, recurrent_dropout=0.5, bias_regularizer='l1'))
+            model.add(LSTM(512, return_sequences=True, dropout=.5, recurrent_dropout=.5, bias_regularizer='l2'))
             model.add(GlobalAveragePooling1D())
             model.add(Dense(1, activation='sigmoid'))
             optimizer = optimizers.Adam(lr=.001, decay=0, clipnorm=5)

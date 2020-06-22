@@ -14,6 +14,7 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 def load_data1(dataset):
     x, y, vocabulary, vocabulary_inv_list = load_data_for_w2v(dataset)
     vocabulary_inv = {key: value for key, value in enumerate(vocabulary_inv_list)}
+    np.random.seed()
 
     # Shuffle data
     shuffle_indices = np.random.permutation(np.arange(len(y)))
@@ -139,7 +140,8 @@ def load_data_for_w2v(dataset):
     vocabulary, vocabulary_inv = build_vocab(sentences)
     x, y = build_input_data(sentences, labels, vocabulary)
     gv.max_article_len = max([len(i) for i in x])
-    return [tf.keras.preprocessing.sequence.pad_sequences(x, dtype='object'), y, vocabulary, vocabulary_inv]
+    return [tf.keras.preprocessing.sequence.pad_sequences(x, padding='pre', dtype='object'), y,
+            vocabulary, vocabulary_inv]
 
 
 def batch_iter(data, batch_size, num_epochs):

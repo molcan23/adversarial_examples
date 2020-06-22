@@ -2,7 +2,8 @@ from nltk import ngrams
 from scipy import spatial
 from utils import *
 from sklearn.metrics.pairwise import cosine_similarity
-
+from nltk.lm.preprocessing import padded_everygram_pipeline
+from nltk.lm import MLE
 
 # GloVe http://nlp.stanford.edu/data/glove.6B.zip
 embeddings_dict = {}
@@ -35,7 +36,7 @@ class AdversarialExmaples:
         self.embedding_weights = embedding['weights']
         self.X_test = X_test
         self.Y_test = Y_test
-        self.X_train = X_train
+        self.X_train = clean_text(X_train)
         self.target_classifier = target_classifier
         self.vocabulary = vocabulary
         self.bayes = bayes
@@ -51,7 +52,12 @@ class AdversarialExmaples:
             self.X_test_adversarial.append(self.algorithm1_greedy_opt_strategy_for_finding_adversarial_examples(x, y))
 
     def train_P(self):
-        language_model = ngrams(self.X_train, cs.NGRAM_ORDER)
+        n = 3
+        train_data, padded_sents = padded_everygram_pipeline(n, self.X_train)
+
+        language_model = MLE(n)  # Lets train a 3-grams maximum likelihood estimation model.
+        language_model.fit(train_data, padded_sents)
+        language_model.vocab()
         return language_model
 
     # SEMANTIC SIMILARITY
@@ -66,13 +72,19 @@ class AdversarialExmaples:
 
     # SYNTACTIC SIMILARITY
     # |logP(x′)−logP(x)|< γ2
-    def syntactic_similarity(self, x, x_prime):
-        print(x)
+    def syntactic_similarity(self, x, x_prime, changed_position):
+        # print(x)
         x = ' '.join([word for word in x])
         x_prime = ' '.join([word for word in x_prime])
+        #
+        # print(x)
+        #
+        # print(self.P.score('doctor'))
+        # print(self.P.score('patient', 'goldberg'.split()))  # P('is'|'language')
+        # print(self.P.score('appointment', 'schedule'.split()))
 
-        print(x)
-        return abs(np.log(self.P(x)) - np.log(self.P(x_prime))) < cs.GAMA2
+        return abs(np.log(self.P.score(x[changed_position], x[changed_position-1].split()))
+                   - np.log(self.P.score(x_prime[changed_position], x_prime[changed_position-1].split()))) < cs.GAMA2
 
     # J(x′) measures the extent to which x′ is adversarial and may be a function of a target class y′!=y
     def J_w2v(self, x, y):
@@ -98,7 +110,7 @@ class AdversarialExmaples:
         """
 
         print(x)
-        x = x.split(" ")
+        x = clean_text([x])[0]
         num_words = len(x)
         changed = 0
         x_prime = [a.lower() for a in x]
@@ -116,15 +128,14 @@ class AdversarialExmaples:
                     for w_stripe in most_similar:
                         if w_stripe not in closest_embeddings: continue
                         x_stripe[i] = w_stripe
-                        if self.syntactic_similarity(x_prime, x_stripe):
+                        if self.syntactic_similarity(x_prime, x_stripe, i):
                             working_set.append([x_stripe, i])
                 else:
-                    # vytvorime bag rerezentaciu vety
-                    # vytvorime take bags, ktore su syntakticky good (pricom synonyma musia patrit do bagu)
                     if x_prime[i] not in self.vocabulary: continue
+                    # TODO chcem vsetky bigramy s x'[i-1] aby som zmenil za x'[i] len za 'validne'
                     for key in self.vocabulary:
                         x_stripe[i] = key
-                        if self.syntactic_similarity(x_prime, x_stripe):
+                        if self.syntactic_similarity(x_prime, x_stripe, i):
                             working_set.append([x_stripe, i])
 
             if not working_set:

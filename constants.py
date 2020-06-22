@@ -29,6 +29,6 @@ GAMA2 = 2
 DELTA = .5
 NEIGHBORHOOD = 20
 
-NGRAM_ORDER = 3
+NGRAM_ORDER = 2
 # # of similar words returned by find_closest_embeddings(word)
 GloVe_LEN = 20
