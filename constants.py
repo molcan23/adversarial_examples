@@ -13,7 +13,7 @@ MIN_COUNT = 5
 DATASET_PATHS = {'fake': 'data/fake-news/train.csv',
                  'yelp': 'data/yelp-review-polarity/yelp_review_polarity_csv/train.csv'}
 DATASET_NAMES = {'fake': 'fake', 'yelp': 'yelp'}
-DATASET_MAX = {'fake': 30, 'yelp': 50}
+DATASET_MAX = {'fake': 30, 'yelp': 5000}
 
 EXP_SIZE = 100
 

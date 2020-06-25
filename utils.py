@@ -14,9 +14,8 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 def load_data1(dataset):
     x, y, vocabulary, vocabulary_inv_list = load_data_for_w2v(dataset)
     vocabulary_inv = {key: value for key, value in enumerate(vocabulary_inv_list)}
-    np.random.seed()
+    # np.random.seed()
 
-    # Shuffle data
     shuffle_indices = np.random.permutation(np.arange(len(y)))
     x = x[shuffle_indices]
     y = y[shuffle_indices]
@@ -30,7 +29,6 @@ def load_data1(dataset):
 
 
 def load_data(dataset):
-    # Data Preparation
     print("Load data...")
     X_train, Y_train, X_test, Y_test, vocabulary_inv, vocabulary = load_data1(dataset)
 
@@ -38,10 +36,8 @@ def load_data(dataset):
     print("X_test shape:", X_test.shape)
     print("Vocabulary Size: {:d}".format(len(vocabulary_inv)))
 
-    # Prepare embedding layer weights and convert inputs for static model
     embedding = train_word2vec(np.vstack((X_train, X_test)), vocabulary_inv, num_features=cs.EMBEDDING_DIM,
                                min_word_count=cs.MIN_WORD_COUNT, context=cs.CONTEXT)
-    # embedding_weights
     X_train = np.stack([np.stack([embedding['weights'][word].astype('float32') for word in sentence])
                         for sentence in X_train])
     X_test = np.stack([np.stack([embedding['weights'][word].astype('float32') for word in sentence])

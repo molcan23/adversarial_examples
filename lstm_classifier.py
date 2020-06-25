@@ -82,4 +82,3 @@ class LSTM_Classifier:
             score = loaded_model.evaluate(X_test, Y_test, verbose=0)
             print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
             self.model = loaded_model
-    # TODO natrenovane LSTM stale dava vysledok cca rovnake... -> opravit

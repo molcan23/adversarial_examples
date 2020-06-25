@@ -18,7 +18,6 @@ class KMaxPooling(Layer):
 
     def __init__(self, k=1, **kwargs):
         super().__init__(**kwargs)
-        # k povodne rovne 3
         self.input_spec = InputSpec(ndim=4)
         self.k = k
 
@@ -27,13 +26,8 @@ class KMaxPooling(Layer):
 
     def call(self, inputs):
         print(inputs)
-        # swap last two dimensions since top_k will be applied along the last dimension
         shifted_input = tf.transpose(inputs, [0, 1, 3, 2])
-
-        # extract top_k, returns two tensors [values, indices]
         top_k = tf.nn.top_k(shifted_input, k=self.k, sorted=True, name=None)[0]
-
-        # return flattened output
         return Flatten()(top_k)
 
 
@@ -46,7 +40,7 @@ class DeepCNN:
         warnings.filterwarnings(action='ignore')
 
         config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+        # config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         set_session(sess)
 
@@ -97,9 +91,9 @@ class DeepCNN:
                                          mode='auto', period=1)
             early = EarlyStopping(monitor='val_acc', min_delta=0, patience=20, verbose=1, mode='auto')
 
+            # FIXME
             # Resource exhausted: OOM when allocating tensor with shape[90,3438,300,64]  # este pre fake_news
 
-            # FIXME
             model.fit(steps_per_epoch=1, x=X_train, y=Y_train,
                       validation_split=.2, validation_steps=10,
                       epochs=10, callbacks=[checkpoint, early])

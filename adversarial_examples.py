@@ -1,4 +1,3 @@
-from nltk import ngrams
 from scipy import spatial
 from utils import *
 from sklearn.metrics.pairwise import cosine_similarity
@@ -55,7 +54,7 @@ class AdversarialExmaples:
         n = 3
         train_data, padded_sents = padded_everygram_pipeline(n, self.X_train)
 
-        language_model = MLE(n)  # Lets train a 3-grams maximum likelihood estimation model.
+        language_model = MLE(n)
         language_model.fit(train_data, padded_sents)
         language_model.vocab()
         return language_model
@@ -73,15 +72,8 @@ class AdversarialExmaples:
     # SYNTACTIC SIMILARITY
     # |logP(x′)−logP(x)|< γ2
     def syntactic_similarity(self, x, x_prime, changed_position):
-        # print(x)
         x = ' '.join([word for word in x])
         x_prime = ' '.join([word for word in x_prime])
-        #
-        # print(x)
-        #
-        # print(self.P.score('doctor'))
-        # print(self.P.score('patient', 'goldberg'.split()))  # P('is'|'language')
-        # print(self.P.score('appointment', 'schedule'.split()))
 
         return abs(np.log(self.P.score(x[changed_position], x[changed_position-1].split()))
                    - np.log(self.P.score(x_prime[changed_position], x_prime[changed_position-1].split()))) < cs.GAMA2
@@ -97,11 +89,9 @@ class AdversarialExmaples:
         return self.target_classifier.predict(x)[0][abs(y - 1)] < cs.TAU
 
     def J_bayes(self, x, y):
-        # TODO v tomto pripade to bude len binarne, leb naive bayes vracia len 0/1
+        # v tomto pripade to bude len binarne, leb naive bayes vracia len 0/1
         x = clean_str(x).split(" ")
         words = [w for w in x if w not in cs.STOP_WORDS]
-        # self.target_classifier.predict(bag_of_words([words])[1])
-
         return self.target_classifier.predict(bag_of_words([words])[1])[0] == y
 
     def algorithm1_greedy_opt_strategy_for_finding_adversarial_examples(self, x, y):
@@ -109,7 +99,6 @@ class AdversarialExmaples:
         Algorithm 1 requires access to a target classifier f; it transforms x into x′ by optimizing the objective J
         """
 
-        print(x)
         x = clean_text([x])[0]
         num_words = len(x)
         changed = 0
@@ -133,6 +122,7 @@ class AdversarialExmaples:
                 else:
                     if x_prime[i] not in self.vocabulary: continue
                     # TODO chcem vsetky bigramy s x'[i-1] aby som zmenil za x'[i] len za 'validne'
+                    # zatial som nenasiel takuto funkciu
                     for key in self.vocabulary:
                         x_stripe[i] = key
                         if self.syntactic_similarity(x_prime, x_stripe, i):
@@ -153,7 +143,6 @@ class AdversarialExmaples:
 
             changed += 1
             sentence = ' '.join([word for word in x_prime])
-            print(sentence)
         return x_prime
 
     def evaluation(self):

@@ -14,6 +14,6 @@ def naive_bayes(articles, labels, dataset):
     model = gnb.fit(X_train, Y_train)
     y_pred = model.predict(X_test)
 
-    print("Mislabeled:", (100 * (Y_test != y_pred).sum()) / X_test.shape[0], "%")
+    print("Accuracy:", 100 - (100 * (Y_test != y_pred).sum()) / X_test.shape[0], "%")
 
     return model, bag
